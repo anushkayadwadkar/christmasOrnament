@@ -1,11 +1,16 @@
 #include <Adafruit_NeoPixel.h>
 
-#define LED_PIN 0
+#define LED_PIN 10
 #define LED_COUNT 4
+#define PHOTO_PIN A0
 #define DELAY 67
+#define THRESHOLD_ON 3.1
+#define THRESHOLD_OFF 3.4
 
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+int v2=0;
+bool ledState=false;
 
 
 void setup() {
@@ -14,40 +19,50 @@ void setup() {
   strip.begin();
   strip.show();
   strip.setBrightness(15);
-
+  pinMode(PHOTO_PIN, INPUT);
+  Serial.begin(9600);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  // int yellow = strip.Color(255,250,0);
-  // blinky(yellow);
 
-  // delay(200);
-  // int cyan = strip.Color(0,255,255); //cyan
-  // blinky(cyan);
-  for (uint16_t startHue; startHue < 65535; startHue+=13070) {
-    colorBlinky(startHue);
+  // first check if we should proceed with turning on the circuit. 
+  // if no, then skip remanining
+  // if yes, then run the for loop
+
+  v2 = analogRead(PHOTO_PIN);
+
+  float v2_v = 0;
+  v2_v = (5./1023.)*v2;
+  Serial.println(v2_v);
+  
+
+  if (v2_v < THRESHOLD_ON) {
+    turnOnLED();
+  } else if (ledState == true) {
+    if (v2_v > THRESHOLD_OFF) {
+      turnOffLED();
+    } else {
+      turnOnLED();
+    }
   }
+
+  delay(100);
+ 
+
 }
 
-void rainbow(int hue){
-  strip.rainbow(hue);
-  strip.show();
-  delay(DELAY);
+void turnOffLED() {
   strip.clear();
   strip.show();
-  delay(DELAY);
-  
+  ledState = false;
 }
 
-void blinky(int color) {
-
- for (int i=0; i<4; i++) {
-    strip.setPixelColor(i,color);
-    strip.show();
-    delay(DELAY);
-    strip.clear();
+void turnOnLED() {
+  for (uint32_t startHue=0; startHue < 65535; startHue+=13070) {
+    colorBlinky(startHue);
   }
+  ledState = true;
 }
 
 
