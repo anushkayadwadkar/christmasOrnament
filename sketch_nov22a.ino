@@ -2,10 +2,10 @@
 #include <avr/sleep.h>
 #include <avr/wdt.h>
 
-#define LED_PIN 10
-#define LDR_POWER_PIN 8    // Digital pin to power the sensor
+#define LED_PIN 0
+#define LDR_POWER_PIN 3    // Digital pin to power the sensor
 #define LED_COUNT 4
-#define PHOTO_PIN A0
+#define PHOTO_PIN A1
 
 #define DELAY 67
 #define THRESHOLD_ON 3.1
@@ -32,7 +32,7 @@ void setup() {
   strip.setBrightness(15);
   pinMode(PHOTO_PIN, INPUT);
   pinMode(LDR_POWER_PIN, OUTPUT);
-  Serial.begin(9600);
+
 
   setupWatchdog();
 }
@@ -45,36 +45,25 @@ void loop() {
   // if yes, then run the for loop
 
   // turn on the sensor
-  digitalWrite(LDR_POWER_PIN, HIGH);
-  delay(2);
-  v2 = analogRead(PHOTO_PIN);
-  digitalWrite(LDR_POWER_PIN, LOW);
 
-  float v2_v = 0;
-  v2_v = (5./1023.)*v2;
-  
-  Serial.println(v2_v);
-  
+  float sensorReading = 0.0;
 
-  if (v2_v < THRESHOLD_ON) {
+  sensorReading = readSensor();
+
+  if (sensorReading < THRESHOLD_ON) {
     turnOnLED();
   } else if (ledState == true) {
-    if (v2_v > THRESHOLD_OFF) {
+    if (sensorReading > THRESHOLD_OFF) {
       // Now it is too bright. Don't turn on LEDs. Go to sleep.
-      Serial.println("Status: DAY. Turning off Pixels. Going to Sleep...");
       turnOffLED();
-      delay(100);
       enterSleep();
-      Serial.println("Woke up!");
     } else {
       turnOnLED();
     }
   } else {
-    Serial.println("Status: DAY. Turning off Pixels. Going to Sleep...");
       turnOffLED();
-      delay(100);
       enterSleep();
-      Serial.println("Woke up!");
+    
   }
 }
 
@@ -91,6 +80,18 @@ void turnOnLED() {
   ledState = true;
 }
 
+float readSensor() {
+  digitalWrite(LDR_POWER_PIN, HIGH);
+  delay(2);
+  v2 = analogRead(PHOTO_PIN);
+  digitalWrite(LDR_POWER_PIN, LOW);
+
+  float v2_v = 0;
+  v2_v = (5./1023.)*v2;
+
+  return v2_v;
+
+}
 
 void colorBlinky(uint16_t startHue) {
   
@@ -106,28 +107,28 @@ void colorBlinky(uint16_t startHue) {
 }
 
 
-// --- HELPER: Deep Sleep Setup ---
+// --- HELPER: Deep Sleep ---
 void enterSleep() {
-  ADCSRA &= ~(1<<ADEN); // Turn off ADC
+  ADCSRA &= ~(1<<ADEN);             // 1. Turn off ADC (saves huge power)
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN); // 2. Set deepest sleep mode
+  sleep_enable();                   // 3. Enable sleep capability
+  sleep_cpu();                      // 4. GO TO SLEEP NOW
   
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-  sleep_enable();
+  // -- CHIP SLEEPS HERE FOR ~4 SECONDS --
   
-  // Note: On the Uno, this won't save much power because the USB chip
-  // and power regulator stay on, but the Logic is identical to ATtiny.
-  sleep_cpu(); 
-  
-  sleep_disable();
-  ADCSRA |= (1<<ADEN); // Turn ADC back on
+  sleep_disable();                  // 5. Woke up! Disable sleep
+  ADCSRA |= (1<<ADEN);              // 6. Turn ADC back on
 }
 
+// --- HELPER: Watchdog Configuration (ATtiny85 Version) ---
 void setupWatchdog() {
-  // UNO SPECIFIC REGISTER (WDTCSR instead of WDTCR)
-  MCUSR &= ~(1<<WDRF);
-  WDTCSR |= (1<<WDCE) | (1<<WDE);
+  MCUSR &= ~(1<<WDRF);              // Clear Reset Flag
   
-  // Set to ~4 seconds
-  // On Uno/ATmega328p: WDIE=1, WDP3=1, WDP0=0 => 1001 binary
-  WDTCSR = (1<<WDIE) | (1<<WDP3); 
+  // Unlock the register (Safety Sequence)
+  // Note: ATtiny85 uses "WDTCR", Arduino uses "WDTCSR"
+  WDTCR |= (1<<WDCE) | (1<<WDE);
+
+  // Set Interrupt Mode (WDIE) and ~4 Second Timeout (WDP3)
+  WDTCR = (1<<WDIE) | (1<<WDP3) | (0<<WDP2) | (0<<WDP1) | (0<<WDP0);
 }
 
