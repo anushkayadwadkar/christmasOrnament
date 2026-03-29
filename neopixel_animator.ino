@@ -4,12 +4,12 @@
 
 #define LED_PIN 0
 #define LDR_POWER_PIN 3    // Digital pin to power the sensor
-#define LED_COUNT 4
+#define LED_COUNT 6
 #define PHOTO_PIN A1
 
 #define DELAY 67
-#define THRESHOLD_ON 3.1
-#define THRESHOLD_OFF 3.4
+#define THRESHOLD_ON 2.5
+#define THRESHOLD_OFF 2.8
 
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -95,7 +95,7 @@ float readSensor() {
 
 void colorBlinky(uint16_t startHue) {
   
-  for (uint16_t i=0; i<4; i++) {
+  for (uint16_t i=0; i<LED_COUNT; i++) {
     uint32_t rgbColor = strip.ColorHSV(startHue+i*10000);
     
     strip.setPixelColor(i,rgbColor);
